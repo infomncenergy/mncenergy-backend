@@ -473,7 +473,7 @@
             </div>
             <div class="search-box">
               <i class="bi bi-search"></i>
-              <input type="text" id="contact-search" placeholder="Search…" oninput="searchContacts()" />
+              <input type="text" id="contact-search" placeholder="Search by name, email or subject…" autocomplete="off" oninput="searchContacts()" />
             </div>
           </div>
           <div id="contacts-table-wrap">
@@ -644,7 +644,7 @@
     });
     document.getElementById('page-title').textContent = TITLES[name];
     if (name === 'bookings') loadBookings();
-    if (name === 'contacts') loadContacts();
+    if (name === 'contacts') { document.getElementById('contact-search').value = ''; currentContactPage = 1; currentContactFilter = 'All'; document.querySelectorAll('#contact-filters .filter-tab').forEach(el => el.classList.toggle('active', el.textContent === 'All')); loadContacts(); }
   }
 
   // ──────────────────────────────────────────────────────────────────────────
