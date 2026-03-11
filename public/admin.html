@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — Landlord Safety Certificate</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    :root {
+      --green:       #1a7a4c;
+      --green-light: #e8f5ee;
+      --green-dark:  #145f3b;
+      --sidebar-w:   260px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f4f6f8; color: #1a1a1a; }
+
+    /* ── Login ─────────────────────────────────────────────────── */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #1a7a4c 0%, #145f3b 100%);
+    }
+    .login-card {
+      background: white; border-radius: 16px; padding: 48px 40px;
+      width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .login-logo { text-align: center; margin-bottom: 32px; }
+    .login-logo .logo-icon {
+      width: 64px; height: 64px; background: var(--green); border-radius: 16px;
+      display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;
+    }
+    .login-logo .logo-icon i { font-size: 28px; color: white; }
+    .login-logo h2 { font-weight: 700; margin: 0; font-size: 1.4rem; }
+    .login-logo p  { color: #888; font-size: .9rem; margin: 4px 0 0; }
+    .btn-login {
+      background: var(--green); color: white; border: none; border-radius: 8px;
+      padding: 12px; font-weight: 600; font-size: 1rem; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-login:hover { background: var(--green-dark); }
+    #login-error { display: none; }
+
+    /* ── App Shell ─────────────────────────────────────────────── */
+    #app { display: none; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed; top: 0; left: 0; height: 100vh; width: var(--sidebar-w);
+      background: white; border-right: 1px solid #e8ecef;
+      display: flex; flex-direction: column; z-index: 100;
+    }
+    .sidebar-brand {
+      padding: 20px 20px 16px; border-bottom: 1px solid #f0f0f0;
+    }
+    .sidebar-brand .brand-icon {
+      width: 40px; height: 40px; background: var(--green); border-radius: 10px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .sidebar-brand .brand-icon i { font-size: 20px; color: white; }
+    .sidebar-brand strong { font-size: .95rem; display: block; line-height: 1.2; }
+    .sidebar-brand span   { font-size: .75rem; color: #888; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .nav-section { padding: 8px 16px 4px; font-size: .7rem; text-transform: uppercase;
+      letter-spacing: .08em; color: #aaa; font-weight: 600; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; margin: 2px 8px; border-radius: 8px;
+      cursor: pointer; transition: background .15s, color .15s;
+      color: #555; font-size: .9rem; text-decoration: none;
+    }
+    .nav-item i { font-size: 1.1rem; width: 20px; text-align: center; }
+    .nav-item:hover  { background: var(--green-light); color: var(--green); }
+    .nav-item.active { background: var(--green); color: white; }
+    .nav-item .badge {
+      margin-left: auto; background: #ef4444; color: white;
+      border-radius: 20px; padding: 2px 7px; font-size: .7rem; font-weight: 700;
+    }
+    .nav-item.active .badge { background: rgba(255,255,255,.25); }
+    .sidebar-footer {
+      padding: 16px; border-top: 1px solid #f0f0f0;
+    }
+    .sidebar-footer .admin-info { display: flex; align-items: center; gap: 10px; }
+    .admin-avatar {
+      width: 36px; height: 36px; background: var(--green-light); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .admin-avatar i { color: var(--green); font-size: 1rem; }
+    .admin-name  { font-size: .85rem; font-weight: 600; }
+    .admin-role  { font-size: .75rem; color: #888; }
+    .btn-logout  {
+      background: none; border: none; color: #888; cursor: pointer; padding: 4px 6px;
+      border-radius: 6px; margin-left: auto; font-size: 1rem;
+    }
+    .btn-logout:hover { color: #ef4444; background: #fef2f2; }
+
+    /* Main content */
+    .main { margin-left: var(--sidebar-w); min-height: 100vh; }
+    .topbar {
+      background: white; border-bottom: 1px solid #e8ecef;
+      padding: 16px 28px; display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar h4 { margin: 0; font-weight: 700; font-size: 1.1rem; flex: 1; }
+    .topbar .topbar-meta { font-size: .8rem; color: #888; }
+    .page-content { padding: 28px; }
+
+    /* Stat Cards */
+    .stat-card {
+      background: white; border-radius: 12px; padding: 20px 24px;
+      border: 1px solid #e8ecef; transition: box-shadow .2s;
+    }
+    .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+    .stat-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+    }
+    .stat-icon i { font-size: 1.3rem; }
+    .stat-icon.green  { background: var(--green-light); color: var(--green); }
+    .stat-icon.blue   { background: #eff6ff;            color: #2563eb; }
+    .stat-icon.amber  { background: #fff8e1;            color: #d97706; }
+    .stat-icon.red    { background: #fef2f2;            color: #ef4444; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+    .stat-label { color: #888; font-size: .8rem; margin-top: 4px; }
+    .stat-sub   { font-size: .75rem; margin-top: 8px; }
+    .stat-sub.up   { color: #16a34a; }
+    .stat-sub.down { color: #ef4444; }
+
+    /* Table panel */
+    .panel {
+      background: white; border-radius: 12px; border: 1px solid #e8ecef;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px; border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .panel-header h5 { margin: 0; font-weight: 700; flex: 1; }
+    .panel table { width: 100%; border-collapse: collapse; }
+    .panel th {
+      padding: 10px 16px; font-size: .75rem; text-transform: uppercase;
+      letter-spacing: .05em; color: #888; background: #f9fafb;
+      border-bottom: 1px solid #f0f0f0; white-space: nowrap;
+    }
+    .panel td {
+      padding: 12px 16px; font-size: .88rem; border-bottom: 1px solid #f5f5f5;
+      vertical-align: middle;
+    }
+    .panel tr:last-child td { border-bottom: none; }
+    .panel tr:hover td     { background: #fafafa; }
+
+    /* Status badges */
+    .badge-status {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: .72rem; font-weight: 600; white-space: nowrap;
+    }
+    .badge-New       { background: #fff8e1; color: #d97706; }
+    .badge-Confirmed { background: #eff6ff; color: #2563eb; }
+    .badge-Completed { background: #f0fdf4; color: #16a34a; }
+    .badge-Cancelled { background: #fef2f2; color: #ef4444; }
+    .badge-Read      { background: #f3e8ff; color: #7c3aed; }
+    .badge-Replied   { background: #eff6ff; color: #2563eb; }
+    .badge-Closed    { background: #f1f5f9; color: #64748b; }
+
+    /* Filter tabs */
+    .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-tab {
+      padding: 5px 14px; border-radius: 20px; font-size: .8rem; cursor: pointer;
+      border: 1px solid #e0e0e0; background: white; color: #555;
+      transition: all .15s;
+    }
+    .filter-tab:hover  { border-color: var(--green); color: var(--green); }
+    .filter-tab.active { background: var(--green); color: white; border-color: var(--green); }
+
+    /* Search */
+    .search-box {
+      position: relative;
+    }
+    .search-box i {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      color: #aaa; pointer-events: none;
+    }
+    .search-box input {
+      padding: 7px 12px 7px 32px; border: 1px solid #e0e0e0; border-radius: 8px;
+      font-size: .85rem; outline: none; width: 220px;
+    }
+    .search-box input:focus { border-color: var(--green); }
+
+    /* Action buttons */
+    .btn-action {
+      border: none; background: none; cursor: pointer; padding: 5px 8px;
+      border-radius: 6px; font-size: .9rem; transition: background .15s;
+    }
+    .btn-action.view   { color: var(--green);  }
+    .btn-action.edit   { color: #2563eb; }
+    .btn-action.delete { color: #ef4444; }
+    .btn-action:hover  { background: #f0f0f0; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; padding: 20px; opacity: 0; pointer-events: none;
+      transition: opacity .2s;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: white; border-radius: 16px; width: 100%; max-width: 600px;
+      max-height: 90vh; overflow-y: auto;
+      transform: scale(.95); transition: transform .2s;
+    }
+    .modal-overlay.show .modal-box { transform: scale(1); }
+    .modal-header {
+      padding: 20px 24px 16px; border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h5 { margin: 0; font-weight: 700; }
+    .modal-close {
+      border: none; background: none; font-size: 1.4rem; cursor: pointer;
+      color: #888; line-height: 1;
+    }
+    .modal-close:hover { color: #333; }
+    .modal-body   { padding: 20px 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; justify-content: flex-end; }
+
+    .detail-row {
+      display: flex; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f5f5f5;
+      font-size: .9rem;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: #888; width: 130px; flex-shrink: 0; font-weight: 500; }
+    .detail-val   { color: #1a1a1a; flex: 1; }
+
+    /* Pagination */
+    .pagination-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #f0f0f0; }
+    .pagination-bar span { font-size: .82rem; color: #888; flex: 1; }
+    .btn-page {
+      border: 1px solid #e0e0e0; background: white; border-radius: 6px;
+      padding: 4px 12px; font-size: .82rem; cursor: pointer;
+    }
+    .btn-page:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+    .btn-page:disabled { opacity: .4; cursor: default; }
+
+    /* Form inputs in modal */
+    .form-label { font-size: .82rem; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .form-select, .form-control { border-radius: 8px; border-color: #e0e0e0; font-size: .88rem; }
+    .form-select:focus, .form-control:focus {
+      border-color: var(--green); box-shadow: 0 0 0 3px rgba(26,122,76,.1);
+    }
+
+    .btn-green {
+      background: var(--green); color: white; border: none; border-radius: 8px;
+      padding: 9px 20px; font-weight: 600; cursor: pointer; font-size: .88rem;
+    }
+    .btn-green:hover { background: var(--green-dark); }
+    .btn-outline-green {
+      background: white; color: var(--green); border: 1.5px solid var(--green);
+      border-radius: 8px; padding: 8px 20px; font-weight: 600; cursor: pointer; font-size: .88rem;
+    }
+    .btn-outline-green:hover { background: var(--green-light); }
+
+    /* Toast */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 99999; }
+    .toast-msg {
+      background: #1a1a1a; color: white; padding: 12px 18px;
+      border-radius: 10px; font-size: .85rem; margin-top: 8px;
+      display: flex; align-items: center; gap: 10px;
+      animation: slideIn .3s ease; box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    }
+    .toast-msg.success { background: #16a34a; }
+    .toast-msg.error   { background: #ef4444; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 48px 24px; color: #aaa; }
+    .empty-state i { font-size: 3rem; margin-bottom: 12px; display: block; }
+    .empty-state p { font-size: .9rem; margin: 0; }
+
+    /* Loading */
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #e0e0e0;
+      border-top-color: var(--green); border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform .3s; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Login Screen ──────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon"><i class="bi bi-shield-lock-fill"></i></div>
+      <h2>Admin Panel</h2>
+      <p>Landlord Safety Certificate</p>
+    </div>
+    <div id="login-error" class="alert alert-danger py-2 mb-3" style="font-size:.85rem;"></div>
+    <form id="login-form">
+      <div class="mb-3">
+        <label class="form-label">Username</label>
+        <input type="text" id="username" class="form-control form-control-lg" placeholder="admin" required autocomplete="username" />
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Password</label>
+        <div class="position-relative">
+          <input type="password" id="password" class="form-control form-control-lg" placeholder="••••••••" required autocomplete="current-password" />
+          <button type="button" onclick="togglePwd()" class="btn-action" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);">
+            <i class="bi bi-eye" id="pwd-eye"></i>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn-login w-100" id="login-btn">
+        <span id="login-txt">Sign In</span>
+        <span id="login-spinner" style="display:none;"><span class="spinner"></span></span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ─── App Shell ─────────────────────────────────────────────────────────── -->
+<div id="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand d-flex align-items-center gap-2">
+      <div class="brand-icon"><i class="bi bi-shield-check"></i></div>
+      <div>
+        <strong>LSC Admin</strong>
+        <span>Landlord Safety Cert</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+        <i class="bi bi-grid-fill"></i> Dashboard
+      </div>
+      <div class="nav-section">Inquiries</div>
+      <div class="nav-item" onclick="showPage('bookings')" id="nav-bookings">
+        <i class="bi bi-calendar-check-fill"></i> Bookings
+        <span class="badge" id="badge-bookings">0</span>
+      </div>
+      <div class="nav-item" onclick="showPage('contacts')" id="nav-contacts">
+        <i class="bi bi-envelope-fill"></i> Contact Enquiries
+        <span class="badge" id="badge-contacts">0</span>
+      </div>
+      <div class="nav-section">Account</div>
+      <div class="nav-item" onclick="showPage('settings')" id="nav-settings">
+        <i class="bi bi-gear-fill"></i> Settings
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="admin-info">
+        <div class="admin-avatar"><i class="bi bi-person-fill"></i></div>
+        <div>
+          <div class="admin-name" id="admin-name">Admin</div>
+          <div class="admin-role">Administrator</div>
+        </div>
+        <button class="btn-logout" onclick="logout()" title="Logout"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div class="topbar">
+      <h4 id="page-title">Dashboard</h4>
+      <span class="topbar-meta" id="topbar-time"></span>
+    </div>
+    <div class="page-content">
+
+      <!-- ── Dashboard ─────────────────────────────────────────── -->
+      <div id="page-dashboard">
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="bi bi-calendar-check-fill"></i></div>
+              <div class="stat-value" id="stat-bookings-total">—</div>
+              <div class="stat-label">Total Bookings</div>
+              <div class="stat-sub up" id="stat-bookings-recent"></div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <div class="stat-icon amber"><i class="bi bi-clock-fill"></i></div>
+              <div class="stat-value" id="stat-bookings-new">—</div>
+              <div class="stat-label">New Bookings</div>
+              <div class="stat-sub">Awaiting confirmation</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="bi bi-envelope-fill"></i></div>
+              <div class="stat-value" id="stat-contacts-total">—</div>
+              <div class="stat-label">Total Enquiries</div>
+              <div class="stat-sub up" id="stat-contacts-recent"></div>
+            </div>
+          </div>
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <div class="stat-icon red"><i class="bi bi-exclamation-circle-fill"></i></div>
+              <div class="stat-value" id="stat-contacts-new">—</div>
+              <div class="stat-label">Unread Enquiries</div>
+              <div class="stat-sub">Needs attention</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent bookings preview -->
+        <div class="panel mb-4">
+          <div class="panel-header">
+            <h5><i class="bi bi-calendar-check me-2 text-success"></i>Recent Bookings</h5>
+            <button class="btn-outline-green" onclick="showPage('bookings')" style="padding:5px 14px;font-size:.82rem;">View All</button>
+          </div>
+          <div id="dash-bookings-table">
+            <div class="empty-state"><span class="spinner"></span></div>
+          </div>
+        </div>
+
+        <!-- Recent contacts preview -->
+        <div class="panel">
+          <div class="panel-header">
+            <h5><i class="bi bi-envelope me-2 text-primary"></i>Recent Enquiries</h5>
+            <button class="btn-outline-green" onclick="showPage('contacts')" style="padding:5px 14px;font-size:.82rem;">View All</button>
+          </div>
+          <div id="dash-contacts-table">
+            <div class="empty-state"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Bookings Page ──────────────────────────────────────── -->
+      <div id="page-bookings" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <h5><i class="bi bi-calendar-check me-2 text-success"></i>All Bookings</h5>
+            <div class="filter-tabs" id="booking-filters">
+              <span class="filter-tab active" onclick="filterBookings('All')">All</span>
+              <span class="filter-tab" onclick="filterBookings('New')">New</span>
+              <span class="filter-tab" onclick="filterBookings('Confirmed')">Confirmed</span>
+              <span class="filter-tab" onclick="filterBookings('Completed')">Completed</span>
+              <span class="filter-tab" onclick="filterBookings('Cancelled')">Cancelled</span>
+            </div>
+            <div class="search-box">
+              <i class="bi bi-search"></i>
+              <input type="text" id="booking-search" placeholder="Search…" oninput="searchBookings()" />
+            </div>
+          </div>
+          <div id="bookings-table-wrap">
+            <div class="empty-state"><span class="spinner"></span></div>
+          </div>
+          <div class="pagination-bar">
+            <span id="booking-pagination-info"></span>
+            <button class="btn-page" id="booking-prev" onclick="bookingPage(-1)" disabled>← Prev</button>
+            <button class="btn-page" id="booking-next" onclick="bookingPage(1)" disabled>Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Contacts Page ──────────────────────────────────────── -->
+      <div id="page-contacts" style="display:none;">
+        <div class="panel">
+          <div class="panel-header">
+            <h5><i class="bi bi-envelope me-2 text-primary"></i>All Contact Enquiries</h5>
+            <div class="filter-tabs" id="contact-filters">
+              <span class="filter-tab active" onclick="filterContacts('All')">All</span>
+              <span class="filter-tab" onclick="filterContacts('New')">New</span>
+              <span class="filter-tab" onclick="filterContacts('Read')">Read</span>
+              <span class="filter-tab" onclick="filterContacts('Replied')">Replied</span>
+              <span class="filter-tab" onclick="filterContacts('Closed')">Closed</span>
+            </div>
+            <div class="search-box">
+              <i class="bi bi-search"></i>
+              <input type="text" id="contact-search" placeholder="Search…" oninput="searchContacts()" />
+            </div>
+          </div>
+          <div id="contacts-table-wrap">
+            <div class="empty-state"><span class="spinner"></span></div>
+          </div>
+          <div class="pagination-bar">
+            <span id="contact-pagination-info"></span>
+            <button class="btn-page" id="contact-prev" onclick="contactPage(-1)" disabled>← Prev</button>
+            <button class="btn-page" id="contact-next" onclick="contactPage(1)" disabled>Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Settings Page ──────────────────────────────────────── -->
+      <div id="page-settings" style="display:none;">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="panel">
+              <div class="panel-header"><h5><i class="bi bi-lock me-2"></i>Change Password</h5></div>
+              <div class="modal-body">
+                <div id="pwd-msg"></div>
+                <div class="mb-3">
+                  <label class="form-label">Current Password</label>
+                  <input type="password" id="cur-pwd" class="form-control" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">New Password</label>
+                  <input type="password" id="new-pwd" class="form-control" />
+                </div>
+                <div class="mb-4">
+                  <label class="form-label">Confirm New Password</label>
+                  <input type="password" id="conf-pwd" class="form-control" />
+                </div>
+                <button class="btn-green" onclick="changePassword()">Update Password</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="panel">
+              <div class="panel-header"><h5><i class="bi bi-info-circle me-2"></i>API Info</h5></div>
+              <div class="modal-body" style="font-size:.85rem; color:#555;">
+                <p><strong>API Base URL:</strong><br><code id="api-base-url"></code></p>
+                <p><strong>Endpoints:</strong></p>
+                <ul style="padding-left:16px;">
+                  <li><code>POST /api/bookings</code> — submit booking</li>
+                  <li><code>GET  /api/bookings</code> — list bookings (auth)</li>
+                  <li><code>POST /api/contacts</code> — submit contact</li>
+                  <li><code>GET  /api/contacts</code> — list contacts (auth)</li>
+                  <li><code>POST /api/auth/login</code> — admin login</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ─── Detail Modal ───────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="detail-modal" onclick="closeModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h5 id="modal-title">Details</h5>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- ─── Toast Container ────────────────────────────────────────────────────── -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  // ──────────────────────────────────────────────────────────────────────────
+  // CONFIG — points to the same server this file is served from
+  // ──────────────────────────────────────────────────────────────────────────
+  const API = window.location.origin;
+  let TOKEN = localStorage.getItem('admin_token') || '';
+  let currentBookingPage   = 1;
+  let currentContactPage   = 1;
+  let currentBookingFilter = 'All';
+  let currentContactFilter = 'All';
+  let bookingSearchTimer, contactSearchTimer;
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // AUTH
+  // ──────────────────────────────────────────────────────────────────────────
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const errEl    = document.getElementById('login-error');
+    const btnTxt   = document.getElementById('login-txt');
+    const btnSpin  = document.getElementById('login-spinner');
+
+    errEl.style.display = 'none';
+    btnTxt.style.display  = 'none';
+    btnSpin.style.display = 'inline';
+
+    try {
+      const res  = await fetch(`${API}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+
+      if (!data.success) throw new Error(data.message);
+
+      TOKEN = data.token;
+      localStorage.setItem('admin_token', TOKEN);
+      document.getElementById('admin-name').textContent = data.admin.username;
+      startApp();
+    } catch (err) {
+      errEl.textContent    = err.message || 'Login failed';
+      errEl.style.display  = 'block';
+    } finally {
+      btnTxt.style.display  = 'inline';
+      btnSpin.style.display = 'none';
+    }
+  });
+
+  function logout() {
+    localStorage.removeItem('admin_token');
+    TOKEN = '';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+
+  function togglePwd() {
+    const inp  = document.getElementById('password');
+    const icon = document.getElementById('pwd-eye');
+    if (inp.type === 'password') { inp.type = 'text'; icon.className = 'bi bi-eye-slash'; }
+    else { inp.type = 'password'; icon.className = 'bi bi-eye'; }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // APP BOOT
+  // ──────────────────────────────────────────────────────────────────────────
+  async function startApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('api-base-url').textContent = API;
+    setInterval(updateClock, 1000); updateClock();
+    await loadDashboard();
+  }
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('topbar-time').textContent =
+      now.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + ' · ' +
+      now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // NAV
+  // ──────────────────────────────────────────────────────────────────────────
+  const PAGES = ['dashboard', 'bookings', 'contacts', 'settings'];
+  const TITLES = { dashboard: 'Dashboard', bookings: 'Bookings', contacts: 'Contact Enquiries', settings: 'Settings' };
+
+  function showPage(name) {
+    PAGES.forEach(p => {
+      document.getElementById('page-' + p).style.display  = p === name ? '' : 'none';
+      document.getElementById('nav-' + p).classList.toggle('active', p === name);
+    });
+    document.getElementById('page-title').textContent = TITLES[name];
+    if (name === 'bookings') loadBookings();
+    if (name === 'contacts') loadContacts();
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // API HELPER
+  // ──────────────────────────────────────────────────────────────────────────
+  async function apiFetch(path, opts = {}) {
+    const res = await fetch(API + path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}`, ...(opts.headers || {}) },
+    });
+    const data = await res.json();
+    if (!data.success && res.status === 401) { logout(); return null; }
+    return data;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // DASHBOARD
+  // ──────────────────────────────────────────────────────────────────────────
+  async function loadDashboard() {
+    const [bStats, cStats, bList, cList] = await Promise.all([
+      apiFetch('/api/bookings/stats'),
+      apiFetch('/api/contacts/stats'),
+      apiFetch('/api/bookings?limit=5'),
+      apiFetch('/api/contacts?limit=5'),
+    ]);
+
+    if (bStats) {
+      document.getElementById('stat-bookings-total').textContent  = bStats.stats.total;
+      document.getElementById('stat-bookings-new').textContent    = bStats.stats.new;
+      document.getElementById('stat-bookings-recent').textContent = `+${bStats.stats.recent} this week`;
+      document.getElementById('badge-bookings').textContent       = bStats.stats.new;
+    }
+    if (cStats) {
+      document.getElementById('stat-contacts-total').textContent  = cStats.stats.total;
+      document.getElementById('stat-contacts-new').textContent    = cStats.stats.new;
+      document.getElementById('stat-contacts-recent').textContent = `+${cStats.stats.recent} this week`;
+      document.getElementById('badge-contacts').textContent       = cStats.stats.new;
+    }
+
+    if (bList && bList.bookings) {
+      document.getElementById('dash-bookings-table').innerHTML = renderBookingTable(bList.bookings, true);
+    }
+    if (cList && cList.contacts) {
+      document.getElementById('dash-contacts-table').innerHTML = renderContactTable(cList.contacts, true);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // BOOKINGS
+  // ──────────────────────────────────────────────────────────────────────────
+  async function loadBookings() {
+    document.getElementById('bookings-table-wrap').innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+    const search = document.getElementById('booking-search').value;
+    const data   = await apiFetch(`/api/bookings?status=${currentBookingFilter}&search=${encodeURIComponent(search)}&page=${currentBookingPage}&limit=15`);
+    if (!data) return;
+
+    document.getElementById('bookings-table-wrap').innerHTML = renderBookingTable(data.bookings);
+    document.getElementById('booking-pagination-info').textContent =
+      `Showing ${data.bookings.length} of ${data.total} bookings`;
+    document.getElementById('booking-prev').disabled = currentBookingPage <= 1;
+    document.getElementById('booking-next').disabled = currentBookingPage >= data.pages;
+  }
+
+  function renderBookingTable(rows, mini = false) {
+    if (!rows || rows.length === 0) {
+      return `<div class="empty-state"><i class="bi bi-calendar-x"></i><p>No bookings found</p></div>`;
+    }
+    return `<div style="overflow-x:auto;"><table>
+      <thead><tr>
+        <th>Date</th><th>Customer</th><th>Service</th>
+        ${!mini ? '<th>Address</th><th>Appt</th>' : ''}
+        <th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(b => `<tr>
+          <td style="white-space:nowrap;">${formatDate(b.createdAt)}</td>
+          <td>
+            <div style="font-weight:600;">${esc(b.name)}</div>
+            <div style="font-size:.78rem;color:#888;">${esc(b.email)}</div>
+          </td>
+          <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(b.service)}">${esc(b.service)}</td>
+          ${!mini ? `<td style="white-space:nowrap;">${esc(b.postcode)}</td><td style="white-space:nowrap;">${esc(b.date)}</td>` : ''}
+          <td><span class="badge-status badge-${b.status}">${b.status}</span></td>
+          <td style="white-space:nowrap;">
+            <button class="btn-action view" onclick="viewBooking('${b._id}')" title="View"><i class="bi bi-eye"></i></button>
+            <button class="btn-action delete" onclick="deleteBooking('${b._id}')" title="Delete"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  }
+
+  function filterBookings(status) {
+    currentBookingFilter = status; currentBookingPage = 1;
+    document.querySelectorAll('#booking-filters .filter-tab').forEach(el =>
+      el.classList.toggle('active', el.textContent === status));
+    loadBookings();
+  }
+
+  let bookingSearchTimeout;
+  function searchBookings() {
+    clearTimeout(bookingSearchTimeout);
+    bookingSearchTimeout = setTimeout(() => { currentBookingPage = 1; loadBookings(); }, 400);
+  }
+
+  function bookingPage(dir) { currentBookingPage += dir; loadBookings(); }
+
+  async function viewBooking(id) {
+    const data = await apiFetch(`/api/bookings/${id}`);
+    if (!data || !data.booking) return;
+    const b = data.booking;
+
+    document.getElementById('modal-title').textContent = 'Booking Details';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="detail-row"><span class="detail-label">Status</span>
+        <span class="detail-val"><span class="badge-status badge-${b.status}">${b.status}</span></span></div>
+      <div class="detail-row"><span class="detail-label">Submitted</span><span class="detail-val">${formatDate(b.createdAt, true)}</span></div>
+      <div class="detail-row"><span class="detail-label">Service</span><span class="detail-val">${esc(b.service)}</span></div>
+      <div class="detail-row"><span class="detail-label">Customer</span><span class="detail-val">${esc(b.name)}</span></div>
+      <div class="detail-row"><span class="detail-label">Email</span><span class="detail-val">${esc(b.email)}</span></div>
+      <div class="detail-row"><span class="detail-label">Phone</span><span class="detail-val">${esc(b.phone)}</span></div>
+      <div class="detail-row"><span class="detail-label">Property</span><span class="detail-val">${esc(b.propertyType)} · ${esc(b.bedrooms)}</span></div>
+      <div class="detail-row"><span class="detail-label">Address</span><span class="detail-val">${esc(b.address)}, ${esc(b.postcode)}</span></div>
+      <div class="detail-row"><span class="detail-label">Appointment</span><span class="detail-val">${esc(b.date)} · ${esc(b.timeSlot)}</span></div>
+      ${b.notes ? `<div class="detail-row"><span class="detail-label">Notes</span><span class="detail-val">${esc(b.notes)}</span></div>` : ''}
+      <hr style="margin:12px 0;">
+      <div class="mb-3">
+        <label class="form-label">Update Status</label>
+        <select class="form-select" id="modal-status-${b._id}">
+          ${['New','Confirmed','Completed','Cancelled'].map(s =>
+            `<option value="${s}"${b.status===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Admin Notes</label>
+        <textarea class="form-control" id="modal-notes-${b._id}" rows="2" placeholder="Internal notes…">${esc(b.adminNotes||'')}</textarea>
+      </div>
+    `;
+    document.getElementById('modal-footer').innerHTML = `
+      <button class="btn-outline-green" onclick="closeModal()">Close</button>
+      <button class="btn-green" onclick="updateBooking('${b._id}')">Save Changes</button>
+    `;
+    openModal();
+  }
+
+  async function updateBooking(id) {
+    const status     = document.getElementById(`modal-status-${id}`).value;
+    const adminNotes = document.getElementById(`modal-notes-${id}`).value;
+    const data = await apiFetch(`/api/bookings/${id}`, {
+      method: 'PATCH', body: JSON.stringify({ status, adminNotes }),
+    });
+    if (data && data.success) {
+      toast('Booking updated', 'success');
+      closeModal();
+      loadBookings();
+      loadDashboard();
+    }
+  }
+
+  async function deleteBooking(id) {
+    if (!confirm('Delete this booking? This cannot be undone.')) return;
+    const data = await apiFetch(`/api/bookings/${id}`, { method: 'DELETE' });
+    if (data && data.success) { toast('Booking deleted', 'success'); loadBookings(); loadDashboard(); }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // CONTACTS
+  // ──────────────────────────────────────────────────────────────────────────
+  async function loadContacts() {
+    document.getElementById('contacts-table-wrap').innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+    const search = document.getElementById('contact-search').value;
+    const data   = await apiFetch(`/api/contacts?status=${currentContactFilter}&search=${encodeURIComponent(search)}&page=${currentContactPage}&limit=15`);
+    if (!data) return;
+
+    document.getElementById('contacts-table-wrap').innerHTML = renderContactTable(data.contacts);
+    document.getElementById('contact-pagination-info').textContent =
+      `Showing ${data.contacts.length} of ${data.total} enquiries`;
+    document.getElementById('contact-prev').disabled = currentContactPage <= 1;
+    document.getElementById('contact-next').disabled = currentContactPage >= data.pages;
+  }
+
+  function renderContactTable(rows, mini = false) {
+    if (!rows || rows.length === 0) {
+      return `<div class="empty-state"><i class="bi bi-envelope-x"></i><p>No enquiries found</p></div>`;
+    }
+    return `<div style="overflow-x:auto;"><table>
+      <thead><tr>
+        <th>Date</th><th>Name</th><th>Subject</th>
+        ${!mini ? '<th>Message</th>' : ''}
+        <th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(c => `<tr>
+          <td style="white-space:nowrap;">${formatDate(c.createdAt)}</td>
+          <td>
+            <div style="font-weight:600;">${esc(c.name)}</div>
+            <div style="font-size:.78rem;color:#888;">${esc(c.email)}</div>
+          </td>
+          <td>${esc(c.subject)}</td>
+          ${!mini ? `<td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(c.message)}">${esc(c.message)}</td>` : ''}
+          <td><span class="badge-status badge-${c.status}">${c.status}</span></td>
+          <td style="white-space:nowrap;">
+            <button class="btn-action view" onclick="viewContact('${c._id}')" title="View"><i class="bi bi-eye"></i></button>
+            <button class="btn-action delete" onclick="deleteContact('${c._id}')" title="Delete"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  }
+
+  function filterContacts(status) {
+    currentContactFilter = status; currentContactPage = 1;
+    document.querySelectorAll('#contact-filters .filter-tab').forEach(el =>
+      el.classList.toggle('active', el.textContent === status));
+    loadContacts();
+  }
+
+  let contactSearchTimeout;
+  function searchContacts() {
+    clearTimeout(contactSearchTimeout);
+    contactSearchTimeout = setTimeout(() => { currentContactPage = 1; loadContacts(); }, 400);
+  }
+
+  function contactPage(dir) { currentContactPage += dir; loadContacts(); }
+
+  async function viewContact(id) {
+    const data = await apiFetch(`/api/contacts/${id}`);
+    if (!data || !data.contact) return;
+    const c = data.contact;
+
+    document.getElementById('modal-title').textContent = 'Contact Enquiry';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="detail-row"><span class="detail-label">Status</span>
+        <span class="detail-val"><span class="badge-status badge-${c.status}">${c.status}</span></span></div>
+      <div class="detail-row"><span class="detail-label">Received</span><span class="detail-val">${formatDate(c.createdAt, true)}</span></div>
+      <div class="detail-row"><span class="detail-label">Name</span><span class="detail-val">${esc(c.name)}</span></div>
+      <div class="detail-row"><span class="detail-label">Email</span><span class="detail-val">${esc(c.email)}</span></div>
+      <div class="detail-row"><span class="detail-label">Phone</span><span class="detail-val">${esc(c.phone||'Not provided')}</span></div>
+      <div class="detail-row"><span class="detail-label">Subject</span><span class="detail-val">${esc(c.subject)}</span></div>
+      <div class="detail-row" style="flex-direction:column;gap:4px;">
+        <span class="detail-label">Message</span>
+        <span class="detail-val" style="background:#f8f9fa;padding:12px;border-radius:8px;white-space:pre-wrap;">${esc(c.message)}</span>
+      </div>
+      <hr style="margin:12px 0;">
+      <div class="mb-3">
+        <label class="form-label">Update Status</label>
+        <select class="form-select" id="cmodal-status-${c._id}">
+          ${['New','Read','Replied','Closed'].map(s =>
+            `<option value="${s}"${c.status===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Admin Notes</label>
+        <textarea class="form-control" id="cmodal-notes-${c._id}" rows="2" placeholder="Internal notes…">${esc(c.adminNotes||'')}</textarea>
+      </div>
+    `;
+    document.getElementById('modal-footer').innerHTML = `
+      <button class="btn-outline-green" onclick="closeModal()">Close</button>
+      <button class="btn-green" onclick="updateContact('${c._id}')">Save Changes</button>
+    `;
+    openModal();
+    // refresh badge
+    loadDashboard();
+  }
+
+  async function updateContact(id) {
+    const status     = document.getElementById(`cmodal-status-${id}`).value;
+    const adminNotes = document.getElementById(`cmodal-notes-${id}`).value;
+    const data = await apiFetch(`/api/contacts/${id}`, {
+      method: 'PATCH', body: JSON.stringify({ status, adminNotes }),
+    });
+    if (data && data.success) {
+      toast('Enquiry updated', 'success');
+      closeModal();
+      loadContacts();
+    }
+  }
+
+  async function deleteContact(id) {
+    if (!confirm('Delete this enquiry? This cannot be undone.')) return;
+    const data = await apiFetch(`/api/contacts/${id}`, { method: 'DELETE' });
+    if (data && data.success) { toast('Enquiry deleted', 'success'); loadContacts(); loadDashboard(); }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // SETTINGS
+  // ──────────────────────────────────────────────────────────────────────────
+  async function changePassword() {
+    const cur  = document.getElementById('cur-pwd').value;
+    const nw   = document.getElementById('new-pwd').value;
+    const conf = document.getElementById('conf-pwd').value;
+    const msgEl = document.getElementById('pwd-msg');
+
+    msgEl.innerHTML = '';
+    if (nw !== conf) {
+      msgEl.innerHTML = '<div class="alert alert-danger py-2 mb-3">Passwords do not match</div>';
+      return;
+    }
+
+    const data = await apiFetch('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+    });
+
+    if (data && data.success) {
+      msgEl.innerHTML = '<div class="alert alert-success py-2 mb-3">Password updated successfully!</div>';
+      document.getElementById('cur-pwd').value = '';
+      document.getElementById('new-pwd').value = '';
+      document.getElementById('conf-pwd').value = '';
+    } else if (data) {
+      msgEl.innerHTML = `<div class="alert alert-danger py-2 mb-3">${data.message}</div>`;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // MODAL
+  // ──────────────────────────────────────────────────────────────────────────
+  function openModal()  { document.getElementById('detail-modal').classList.add('show'); }
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('detail-modal')) return;
+    document.getElementById('detail-modal').classList.remove('show');
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // TOAST
+  // ──────────────────────────────────────────────────────────────────────────
+  function toast(msg, type = '') {
+    const el = document.createElement('div');
+    el.className = 'toast-msg ' + type;
+    el.innerHTML = `<i class="bi ${type === 'success' ? 'bi-check-circle-fill' : type === 'error' ? 'bi-x-circle-fill' : 'bi-info-circle-fill'}"></i>${msg}`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // HELPERS
+  // ──────────────────────────────────────────────────────────────────────────
+  function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function formatDate(iso, full = false) {
+    const d = new Date(iso);
+    if (full) return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit' });
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // AUTO-LOGIN if token exists
+  // ──────────────────────────────────────────────────────────────────────────
+  (async () => {
+    if (!TOKEN) return;
+    const data = await fetch(`${API}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${TOKEN}` }
+    }).then(r => r.json()).catch(() => null);
+
+    if (data && data.success) {
+      document.getElementById('admin-name').textContent = data.admin.username;
+      startApp();
+    } else {
+      localStorage.removeItem('admin_token');
+      TOKEN = '';
+    }
+  })();
+</script>
+</body>
+</html>
