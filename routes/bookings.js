@@ -20,18 +20,17 @@ router.post('/', async (req, res, next) => {
       date, timeSlot, name, email, phone, notes,
     });
 
-    // Send email notifications (don't fail the request if email fails)
-    try {
-      await sendBookingNotification(booking);
-    } catch (emailErr) {
-      console.error('Email notification failed:', emailErr.message);
-    }
-
+    // Send response immediately — don't wait for email
     res.status(201).json({
       success: true,
       message: 'Booking received! We will confirm your appointment within 2 hours.',
       bookingId: booking._id,
     });
+
+    // Send email in background after response is sent
+    sendBookingNotification(booking).catch(err =>
+      console.error('Email notification failed:', err.message)
+    );
   } catch (err) {
     next(err);
   }
