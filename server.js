@@ -40,9 +40,8 @@ const limiter = rateLimit({
 
 const formLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max:      process.env.NODE_ENV === 'production' ? 10 : 200, // relaxed in development
+  max:      100, // 100 submissions per hour per IP
   message:  { success: false, message: 'Too many submissions, please try again later.' },
-  skip: () => process.env.NODE_ENV !== 'production', // skip rate limit entirely in development
 });
 
 app.use('/api/', limiter);
