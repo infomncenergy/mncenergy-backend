@@ -1,5 +1,6 @@
 const express  = require('express');
 const Booking  = require('../models/Booking');
+const Contact  = require('../models/Contact');
 const { protect }       = require('../middleware/authMiddleware');
 const { sendBookingNotification } = require('../utils/sendEmail');
 
@@ -15,9 +16,17 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please fill in all required fields' });
     }
 
+    // Detect returning customer — check if this email already exists in bookings or contacts
+    const emailLower = email.toLowerCase().trim();
+    const [priorBooking, priorContact] = await Promise.all([
+      Booking.findOne({ email: { $regex: new RegExp(`^${emailLower}$`, 'i') } }).lean(),
+      Contact.findOne({ email: { $regex: new RegExp(`^${emailLower}$`, 'i') } }).lean(),
+    ]);
+    const isReturning = !!(priorBooking || priorContact);
+
     const booking = await Booking.create({
       service, propertyType, bedrooms, address, postcode,
-      date, timeSlot, name, email, phone, notes,
+      date, timeSlot, name, email, phone, notes, isReturning,
     });
 
     // Send response immediately — don't wait for email

@@ -28,7 +28,8 @@ const bookingSchema = new mongoose.Schema(
       default: 'New',
     },
 
-    adminNotes: { type: String, default: '' },
+    adminNotes:  { type: String,  default: '' },
+    isReturning: { type: Boolean, default: false }, // true if same email has a prior record
   },
   { timestamps: true }
 );
