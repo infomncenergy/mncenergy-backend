@@ -1,62 +1,50 @@
-// ─── Email via Brevo HTTP API ─────────────────────────────────────────────────
-// Brevo (formerly Sendinblue) uses HTTP (port 443) — works on Render free tier.
-// No domain verification needed — just verify the sender email address once.
+// ─── Email via Google Apps Script Relay ──────────────────────────────────────
+// Sends emails through your existing Gmail account using a Google Apps Script
+// web app as an HTTP relay. No new accounts or domain verification needed.
 //
-// Setup (2 minutes):
-//   1. Sign up at https://brevo.com (use info.mncenergy@gmail.com)
-//   2. Settings → Senders & IP → Senders → Add sender (info.mncenergy@gmail.com)
-//   3. Click the verification link Brevo emails you
-//   4. Settings → API Keys → Generate a new API key → copy it
-//   5. Add BREVO_API_KEY=your_key to Render environment variables
+// Setup (5 minutes, uses your existing Google account):
+//   1. Go to https://script.google.com → New Project
+//   2. Paste the contents of GAS_SCRIPT.js (see bottom of this file)
+//   3. Click Deploy → New deployment → Web app
+//      - Execute as: Me (info.mncenergy@gmail.com)
+//      - Who has access: Anyone
+//   4. Copy the web app URL
+//   5. Add to Render env vars:
+//        GAS_WEBHOOK_URL = https://script.google.com/macros/s/xxxxx/exec
+//        GAS_SECRET      = mnc_energy_2025   (any secret string you choose)
 
-const BREVO_API = 'https://api.brevo.com/v3/smtp/email';
+const sendViaGAS = async ({ to, toName, subject, html, replyTo }) => {
+  const webhookUrl = process.env.GAS_WEBHOOK_URL;
+  const secret     = process.env.GAS_SECRET || 'mnc_energy_2025';
 
-const getSender = () => ({
-  name:  'MNC Energy',
-  email: process.env.EMAIL_USER || 'info.mncenergy@gmail.com',
-});
-
-// ─── Core send helper ─────────────────────────────────────────────────────────
-const sendBrevo = async ({ to, toName, subject, html, replyTo }) => {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) throw new Error('BREVO_API_KEY is not set in environment variables');
-
-  const body = {
-    sender:      getSender(),
-    to:          [{ email: to, name: toName || to }],
-    subject,
-    htmlContent: html,
-  };
-  if (replyTo) body.replyTo = { email: replyTo };
-
-  const res  = await fetch(BREVO_API, {
-    method:  'POST',
-    headers: {
-      'accept':       'application/json',
-      'api-key':      apiKey,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(`Brevo error ${res.status}: ${data.message || JSON.stringify(data)}`);
+  if (!webhookUrl) {
+    throw new Error('GAS_WEBHOOK_URL is not set in environment variables');
   }
 
-  return data; // { messageId: '...' }
+  const res = await fetch(webhookUrl, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ to, toName, subject, html, replyTo, secret }),
+  });
+
+  // GAS always returns 200; errors come back as JSON { error: '...' }
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+  if (data.error) throw new Error(`GAS relay error: ${data.error}`);
+  return data;
 };
 
 // ─── Startup check ────────────────────────────────────────────────────────────
 const verifyTransporter = () => {
-  if (!process.env.BREVO_API_KEY) {
-    console.error('⚠️  BREVO_API_KEY is not set — emails will not be sent');
-    console.error('   Get your key at https://brevo.com → Settings → API Keys');
+  if (!process.env.GAS_WEBHOOK_URL) {
+    console.error('⚠️  GAS_WEBHOOK_URL is not set — emails will not be sent');
+    console.error('   See setup instructions in utils/sendEmail.js');
   } else {
-    console.log('✅ Brevo email client ready');
-    console.log(`   FROM: ${getSender().email}`);
+    console.log('✅ Google Apps Script email relay ready');
     console.log(`   ADMIN: ${process.env.ADMIN_EMAIL}`);
+    console.log(`   FROM:  info.mncenergy@gmail.com (via GAS)`);
   }
 };
 
@@ -98,8 +86,7 @@ const sendBookingNotification = async (booking) => {
         </div>
       </div>
       <p style="font-size: 12px; color: #999; text-align: center; margin-top: 12px;">MNC Energy Ltd &middot; Company No: 16255515 &middot; London &amp; M25 Area</p>
-    </div>
-  `;
+    </div>`;
 
   const customerHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -124,28 +111,15 @@ const sendBookingNotification = async (booking) => {
         <a href="mailto:Info@mncenergy.co.uk" style="color: #6B2FA0;">Info@mncenergy.co.uk</a> &middot; +44 7345 158783</p>
       </div>
       <p style="font-size: 12px; color: #999; text-align: center; margin-top: 12px;">MNC Energy Ltd &middot; Company No: 16255515 &middot; London &amp; M25 Area</p>
-    </div>
-  `;
+    </div>`;
 
-  // Notify admin
   console.log(`📧 Sending admin booking email to: ${ADMIN}`);
-  const adminResult = await sendBrevo({
-    to:      ADMIN,
-    subject: `New Booking: ${booking.service} — ${booking.name}${booking.isReturning ? ' [Returning Customer]' : ''}`,
-    html:    adminHtml,
-    replyTo: booking.email,
-  });
-  console.log(`✅ Admin booking email sent. MessageId: ${adminResult.messageId}`);
+  await sendViaGAS({ to: ADMIN, subject: `New Booking: ${booking.service} — ${booking.name}${booking.isReturning ? ' [Returning Customer]' : ''}`, html: adminHtml, replyTo: booking.email });
+  console.log(`✅ Admin booking email sent`);
 
-  // Confirm to customer
   console.log(`📧 Sending customer booking email to: ${booking.email}`);
-  const custResult = await sendBrevo({
-    to:      booking.email,
-    toName:  booking.name,
-    subject: `Booking Request Received — ${booking.service} | MNC Energy`,
-    html:    customerHtml,
-  });
-  console.log(`✅ Customer booking email sent. MessageId: ${custResult.messageId}`);
+  await sendViaGAS({ to: booking.email, toName: booking.name, subject: `Booking Request Received — ${booking.service} | MNC Energy`, html: customerHtml });
+  console.log(`✅ Customer booking email sent`);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,8 +154,7 @@ const sendContactNotification = async (contact) => {
         </div>
       </div>
       <p style="font-size: 12px; color: #999; text-align: center; margin-top: 12px;">MNC Energy Ltd &middot; Company No: 16255515 &middot; London &amp; M25 Area</p>
-    </div>
-  `;
+    </div>`;
 
   const customerHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -197,26 +170,15 @@ const sendContactNotification = async (contact) => {
         <a href="mailto:Info@mncenergy.co.uk" style="color: #6B2FA0;">Info@mncenergy.co.uk</a> &middot; +44 7345 158783</p>
       </div>
       <p style="font-size: 12px; color: #999; text-align: center; margin-top: 12px;">MNC Energy Ltd &middot; Company No: 16255515 &middot; London &amp; M25 Area</p>
-    </div>
-  `;
+    </div>`;
 
   console.log(`📧 Sending admin contact email to: ${ADMIN}`);
-  const adminResult = await sendBrevo({
-    to:      ADMIN,
-    subject: `New Enquiry: ${contact.subject} — ${contact.name}${contact.isReturning ? ' [Returning Customer]' : ''}`,
-    html:    adminHtml,
-    replyTo: contact.email,
-  });
-  console.log(`✅ Admin contact email sent. MessageId: ${adminResult.messageId}`);
+  await sendViaGAS({ to: ADMIN, subject: `New Enquiry: ${contact.subject} — ${contact.name}${contact.isReturning ? ' [Returning Customer]' : ''}`, html: adminHtml, replyTo: contact.email });
+  console.log(`✅ Admin contact email sent`);
 
   console.log(`📧 Sending customer contact email to: ${contact.email}`);
-  const custResult = await sendBrevo({
-    to:      contact.email,
-    toName:  contact.name,
-    subject: `We've received your enquiry — MNC Energy`,
-    html:    customerHtml,
-  });
-  console.log(`✅ Customer contact email sent. MessageId: ${custResult.messageId}`);
+  await sendViaGAS({ to: contact.email, toName: contact.name, subject: `We've received your enquiry — MNC Energy`, html: customerHtml });
+  console.log(`✅ Customer contact email sent`);
 };
 
 module.exports = { sendBookingNotification, sendContactNotification };
