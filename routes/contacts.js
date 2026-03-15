@@ -28,9 +28,11 @@ router.post('/', async (req, res, next) => {
     // Send email BEFORE responding (fire-and-forget fails on Render free tier)
     try {
       await sendContactNotification(contact);
-      console.log('Contact email sent successfully for:', contact.email);
     } catch (err) {
-      console.error('Email notification failed:', err.message);
+      console.error('❌ Contact email FAILED:', err.message);
+      console.error('   Error code:', err.code);
+      console.error('   Response:', err.response);
+      console.error('   Stack:', err.stack);
     }
 
     res.status(201).json({

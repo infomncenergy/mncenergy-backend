@@ -96,20 +96,24 @@ const sendBookingNotification = async (booking) => {
   `;
 
   // Notify admin
-  await transporter.sendMail({
+  console.log(`📧 Sending admin booking email to: ${process.env.ADMIN_EMAIL}`);
+  const adminResult = await transporter.sendMail({
     from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
     to:      process.env.ADMIN_EMAIL,
     subject: `New Booking: ${booking.service} — ${booking.name}${booking.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
   });
+  console.log(`✅ Admin booking email sent. MessageId: ${adminResult.messageId}`);
 
   // Confirm to customer
-  await transporter.sendMail({
+  console.log(`📧 Sending customer booking email to: ${booking.email}`);
+  const customerResult = await transporter.sendMail({
     from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
     to:      booking.email,
     subject: `Booking Request Received — ${booking.service} | MNC Energy`,
     html:    customerHtml,
   });
+  console.log(`✅ Customer booking email sent. MessageId: ${customerResult.messageId}`);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,19 +168,23 @@ const sendContactNotification = async (contact) => {
     </div>
   `;
 
-  await transporter.sendMail({
+  console.log(`📧 Sending admin contact email to: ${process.env.ADMIN_EMAIL}`);
+  const adminResult = await transporter.sendMail({
     from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
     to:      process.env.ADMIN_EMAIL,
     subject: `New Enquiry: ${contact.subject} — ${contact.name}${contact.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
   });
+  console.log(`✅ Admin contact email sent. MessageId: ${adminResult.messageId}`);
 
-  await transporter.sendMail({
+  console.log(`📧 Sending customer contact email to: ${contact.email}`);
+  const customerResult = await transporter.sendMail({
     from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
     to:      contact.email,
     subject: `We've received your enquiry — MNC Energy`,
     html:    customerHtml,
   });
+  console.log(`✅ Customer contact email sent. MessageId: ${customerResult.messageId}`);
 };
 
 module.exports = { sendBookingNotification, sendContactNotification };
