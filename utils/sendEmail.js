@@ -1,17 +1,23 @@
 const nodemailer = require('nodemailer');
 
 // ─── Create Gmail transporter ─────────────────────────────────────────────────
-// Using service:'gmail' automatically applies correct host/port/TLS settings.
-// Strip spaces from app password (Gmail displays them in groups of 4 for readability,
-// but the actual password has no spaces).
+// Uses port 465 with SSL (not 587 STARTTLS) because Render free tier blocks
+// outbound port 587, causing it to hang silently instead of failing fast.
+// Port 465 SSL works reliably on Render.
+// Strip spaces from app password (Gmail shows them in groups of 4 for readability).
 const createTransporter = () => {
   const pass = (process.env.EMAIL_PASS || '').replace(/\s/g, '');
   return nodemailer.createTransport({
-    service: 'gmail',
+    host:   'smtp.gmail.com',
+    port:   465,
+    secure: true,               // SSL — required for port 465
     auth: {
       user: process.env.EMAIL_USER,
       pass,
     },
+    connectionTimeout: 10000,  // fail after 10s if can't connect
+    greetingTimeout:   10000,  // fail after 10s waiting for SMTP greeting
+    socketTimeout:     15000,  // fail after 15s of socket inactivity
   });
 };
 

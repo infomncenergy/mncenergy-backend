@@ -25,14 +25,16 @@ router.post('/', async (req, res, next) => {
 
     const contact = await Contact.create({ name, email, phone, subject: subject || 'General Enquiry', message, isReturning });
 
-    // Send email BEFORE responding (fire-and-forget fails on Render free tier)
+    // Send email with a 20s timeout guard — ensures HTTP response is ALWAYS sent
+    // even if SMTP is unreachable (e.g. Render free tier port restrictions).
+    const emailTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Email timed out after 20s')), 20000)
+    );
     try {
-      await sendContactNotification(contact);
+      await Promise.race([sendContactNotification(contact), emailTimeout]);
     } catch (err) {
       console.error('❌ Contact email FAILED:', err.message);
-      console.error('   Error code:', err.code);
-      console.error('   Response:', err.response);
-      console.error('   Stack:', err.stack);
+      console.error('   Code:', err.code, '| Response:', err.response);
     }
 
     res.status(201).json({
