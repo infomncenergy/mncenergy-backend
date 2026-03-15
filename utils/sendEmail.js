@@ -1,29 +1,63 @@
-const { Resend } = require('resend');
-
-// ─── Resend client ────────────────────────────────────────────────────────────
-// Resend uses HTTP API (port 443) — works on all hosting including Render free.
-// Get your API key at https://resend.com → API Keys.
-// Add RESEND_API_KEY to your Render environment variables.
+// ─── Email via Brevo HTTP API ─────────────────────────────────────────────────
+// Brevo (formerly Sendinblue) uses HTTP (port 443) — works on Render free tier.
+// No domain verification needed — just verify the sender email address once.
 //
-// FROM address options:
-//   • Before domain verification: 'onboarding@resend.dev'
-//   • After verifying mncenergy.co.uk in Resend dashboard: 'info@mncenergy.co.uk'
-// Set EMAIL_FROM in .env / Render env vars once your domain is verified.
+// Setup (2 minutes):
+//   1. Sign up at https://brevo.com (use info.mncenergy@gmail.com)
+//   2. Settings → Senders & IP → Senders → Add sender (info.mncenergy@gmail.com)
+//   3. Click the verification link Brevo emails you
+//   4. Settings → API Keys → Generate a new API key → copy it
+//   5. Add BREVO_API_KEY=your_key to Render environment variables
 
-const getResend = () => new Resend(process.env.RESEND_API_KEY);
+const BREVO_API = 'https://api.brevo.com/v3/smtp/email';
 
-const FROM = process.env.EMAIL_FROM || 'MNC Energy <onboarding@resend.dev>';
-const ADMIN = process.env.ADMIN_EMAIL;
+const getSender = () => ({
+  name:  'MNC Energy',
+  email: process.env.EMAIL_USER || 'info.mncenergy@gmail.com',
+});
 
-// ─── Verify / startup check ───────────────────────────────────────────────────
-const verifyTransporter = async () => {
-  if (!process.env.RESEND_API_KEY) {
-    console.error('⚠️  RESEND_API_KEY is not set — emails will not be sent');
-    return;
+// ─── Core send helper ─────────────────────────────────────────────────────────
+const sendBrevo = async ({ to, toName, subject, html, replyTo }) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY is not set in environment variables');
+
+  const body = {
+    sender:      getSender(),
+    to:          [{ email: to, name: toName || to }],
+    subject,
+    htmlContent: html,
+  };
+  if (replyTo) body.replyTo = { email: replyTo };
+
+  const res  = await fetch(BREVO_API, {
+    method:  'POST',
+    headers: {
+      'accept':       'application/json',
+      'api-key':      apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(`Brevo error ${res.status}: ${data.message || JSON.stringify(data)}`);
   }
-  console.log('✅ Resend email client ready');
-  console.log(`   FROM: ${FROM}`);
-  console.log(`   ADMIN: ${ADMIN}`);
+
+  return data; // { messageId: '...' }
+};
+
+// ─── Startup check ────────────────────────────────────────────────────────────
+const verifyTransporter = () => {
+  if (!process.env.BREVO_API_KEY) {
+    console.error('⚠️  BREVO_API_KEY is not set — emails will not be sent');
+    console.error('   Get your key at https://brevo.com → Settings → API Keys');
+  } else {
+    console.log('✅ Brevo email client ready');
+    console.log(`   FROM: ${getSender().email}`);
+    console.log(`   ADMIN: ${process.env.ADMIN_EMAIL}`);
+  }
 };
 
 verifyTransporter();
@@ -32,7 +66,7 @@ verifyTransporter();
 // Send booking notification to admin + confirmation to customer
 // ─────────────────────────────────────────────────────────────────────────────
 const sendBookingNotification = async (booking) => {
-  const resend = getResend();
+  const ADMIN = process.env.ADMIN_EMAIL;
 
   const returningBadge = booking.isReturning
     ? `<div style="margin:0 0 16px;padding:10px 14px;background:#fff8e1;border-left:4px solid #f59e0b;border-radius:6px;">
@@ -95,42 +129,30 @@ const sendBookingNotification = async (booking) => {
 
   // Notify admin
   console.log(`📧 Sending admin booking email to: ${ADMIN}`);
-  const adminResult = await resend.emails.send({
-    from:    FROM,
-    to:      [ADMIN],
-    replyTo: booking.email,
+  const adminResult = await sendBrevo({
+    to:      ADMIN,
     subject: `New Booking: ${booking.service} — ${booking.name}${booking.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
+    replyTo: booking.email,
   });
-  if (adminResult.error) {
-    console.error(`❌ Admin booking email error: ${adminResult.error.message}`);
-    throw new Error(adminResult.error.message);
-  }
-  console.log(`✅ Admin booking email sent. ID: ${adminResult.data?.id}`);
+  console.log(`✅ Admin booking email sent. MessageId: ${adminResult.messageId}`);
 
   // Confirm to customer
   console.log(`📧 Sending customer booking email to: ${booking.email}`);
-  const customerResult = await resend.emails.send({
-    from:    FROM,
-    to:      [booking.email],
+  const custResult = await sendBrevo({
+    to:      booking.email,
+    toName:  booking.name,
     subject: `Booking Request Received — ${booking.service} | MNC Energy`,
     html:    customerHtml,
   });
-  if (customerResult.error) {
-    // This typically means domain not verified yet — admin email already sent above
-    console.error(`❌ Customer booking email error: ${customerResult.error.message}`);
-    console.error(`   → Fix: verify mncenergy.co.uk in Resend dashboard (resend.com/domains)`);
-    console.error(`   → Then set EMAIL_FROM=MNC Energy <info@mncenergy.co.uk> in Render env vars`);
-    throw new Error(customerResult.error.message);
-  }
-  console.log(`✅ Customer booking email sent. ID: ${customerResult.data?.id}`);
+  console.log(`✅ Customer booking email sent. MessageId: ${custResult.messageId}`);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Send contact notification to admin + confirmation to customer
 // ─────────────────────────────────────────────────────────────────────────────
 const sendContactNotification = async (contact) => {
-  const resend = getResend();
+  const ADMIN = process.env.ADMIN_EMAIL;
 
   const returningBadge = contact.isReturning
     ? `<div style="margin:0 0 16px;padding:10px 14px;background:#fff8e1;border-left:4px solid #f59e0b;border-radius:6px;">
@@ -179,33 +201,22 @@ const sendContactNotification = async (contact) => {
   `;
 
   console.log(`📧 Sending admin contact email to: ${ADMIN}`);
-  const adminResult = await resend.emails.send({
-    from:    FROM,
-    to:      [ADMIN],
-    replyTo: contact.email,
+  const adminResult = await sendBrevo({
+    to:      ADMIN,
     subject: `New Enquiry: ${contact.subject} — ${contact.name}${contact.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
+    replyTo: contact.email,
   });
-  if (adminResult.error) {
-    console.error(`❌ Admin contact email error: ${adminResult.error.message}`);
-    throw new Error(adminResult.error.message);
-  }
-  console.log(`✅ Admin contact email sent. ID: ${adminResult.data?.id}`);
+  console.log(`✅ Admin contact email sent. MessageId: ${adminResult.messageId}`);
 
   console.log(`📧 Sending customer contact email to: ${contact.email}`);
-  const customerResult = await resend.emails.send({
-    from:    FROM,
-    to:      [contact.email],
+  const custResult = await sendBrevo({
+    to:      contact.email,
+    toName:  contact.name,
     subject: `We've received your enquiry — MNC Energy`,
     html:    customerHtml,
   });
-  if (customerResult.error) {
-    console.error(`❌ Customer contact email error: ${customerResult.error.message}`);
-    console.error(`   → Fix: verify mncenergy.co.uk in Resend dashboard (resend.com/domains)`);
-    console.error(`   → Then set EMAIL_FROM=MNC Energy <info@mncenergy.co.uk> in Render env vars`);
-    throw new Error(customerResult.error.message);
-  }
-  console.log(`✅ Customer contact email sent. ID: ${customerResult.data?.id}`);
+  console.log(`✅ Customer contact email sent. MessageId: ${custResult.messageId}`);
 };
 
 module.exports = { sendBookingNotification, sendContactNotification };
