@@ -102,7 +102,10 @@ const sendBookingNotification = async (booking) => {
     subject: `New Booking: ${booking.service} — ${booking.name}${booking.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
   });
-  if (adminResult.error) throw new Error(`Admin email failed: ${adminResult.error.message}`);
+  if (adminResult.error) {
+    console.error(`❌ Admin booking email error: ${adminResult.error.message}`);
+    throw new Error(adminResult.error.message);
+  }
   console.log(`✅ Admin booking email sent. ID: ${adminResult.data?.id}`);
 
   // Confirm to customer
@@ -113,7 +116,13 @@ const sendBookingNotification = async (booking) => {
     subject: `Booking Request Received — ${booking.service} | MNC Energy`,
     html:    customerHtml,
   });
-  if (customerResult.error) throw new Error(`Customer email failed: ${customerResult.error.message}`);
+  if (customerResult.error) {
+    // This typically means domain not verified yet — admin email already sent above
+    console.error(`❌ Customer booking email error: ${customerResult.error.message}`);
+    console.error(`   → Fix: verify mncenergy.co.uk in Resend dashboard (resend.com/domains)`);
+    console.error(`   → Then set EMAIL_FROM=MNC Energy <info@mncenergy.co.uk> in Render env vars`);
+    throw new Error(customerResult.error.message);
+  }
   console.log(`✅ Customer booking email sent. ID: ${customerResult.data?.id}`);
 };
 
@@ -177,7 +186,10 @@ const sendContactNotification = async (contact) => {
     subject: `New Enquiry: ${contact.subject} — ${contact.name}${contact.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
   });
-  if (adminResult.error) throw new Error(`Admin email failed: ${adminResult.error.message}`);
+  if (adminResult.error) {
+    console.error(`❌ Admin contact email error: ${adminResult.error.message}`);
+    throw new Error(adminResult.error.message);
+  }
   console.log(`✅ Admin contact email sent. ID: ${adminResult.data?.id}`);
 
   console.log(`📧 Sending customer contact email to: ${contact.email}`);
@@ -187,7 +199,12 @@ const sendContactNotification = async (contact) => {
     subject: `We've received your enquiry — MNC Energy`,
     html:    customerHtml,
   });
-  if (customerResult.error) throw new Error(`Customer email failed: ${customerResult.error.message}`);
+  if (customerResult.error) {
+    console.error(`❌ Customer contact email error: ${customerResult.error.message}`);
+    console.error(`   → Fix: verify mncenergy.co.uk in Resend dashboard (resend.com/domains)`);
+    console.error(`   → Then set EMAIL_FROM=MNC Energy <info@mncenergy.co.uk> in Render env vars`);
+    throw new Error(customerResult.error.message);
+  }
   console.log(`✅ Customer contact email sent. ID: ${customerResult.data?.id}`);
 };
 
