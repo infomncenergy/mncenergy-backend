@@ -25,16 +25,18 @@ router.post('/', async (req, res, next) => {
 
     const contact = await Contact.create({ name, email, phone, subject: subject || 'General Enquiry', message, isReturning });
 
-    // Send response immediately — don't wait for email
+    // Send email BEFORE responding (fire-and-forget fails on Render free tier)
+    try {
+      await sendContactNotification(contact);
+      console.log('Contact email sent successfully for:', contact.email);
+    } catch (err) {
+      console.error('Email notification failed:', err.message);
+    }
+
     res.status(201).json({
       success: true,
       message: "Thank you for your enquiry. We'll get back to you within 24 hours.",
     });
-
-    // Send email in background after response is sent
-    sendContactNotification(contact).catch(err =>
-      console.error('Email notification failed:', err.message)
-    );
   } catch (err) {
     next(err);
   }

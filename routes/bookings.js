@@ -29,17 +29,19 @@ router.post('/', async (req, res, next) => {
       date, timeSlot, name, email, phone, notes, isReturning,
     });
 
-    // Send response immediately — don't wait for email
+    // Send email BEFORE responding (fire-and-forget fails on Render free tier)
+    try {
+      await sendBookingNotification(booking);
+      console.log('Booking email sent successfully for:', booking.email);
+    } catch (err) {
+      console.error('Email notification failed:', err.message);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Booking received! We will confirm your appointment within 2 hours.',
       bookingId: booking._id,
     });
-
-    // Send email in background after response is sent
-    sendBookingNotification(booking).catch(err =>
-      console.error('Email notification failed:', err.message)
-    );
   } catch (err) {
     next(err);
   }

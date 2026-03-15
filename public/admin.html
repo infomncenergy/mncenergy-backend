@@ -612,17 +612,30 @@
             </div>
           </div>
           <div class="col-md-6">
+            <div class="panel mb-4">
+              <div class="panel-header"><h5><i class="bi bi-envelope-check me-2"></i>Email Diagnostics</h5></div>
+              <div class="modal-body">
+                <p style="font-size:.85rem;color:var(--text-sub);margin-bottom:14px;">
+                  Click below to send a live test email and see the exact result — including any error messages if the email config is broken.
+                </p>
+                <div id="email-test-result" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:10px;font-size:.84rem;line-height:1.6;"></div>
+                <button class="btn-green" onclick="testEmail()" id="test-email-btn">
+                  <i class="bi bi-send me-2"></i>Send Test Email
+                </button>
+              </div>
+            </div>
             <div class="panel">
               <div class="panel-header"><h5><i class="bi bi-info-circle me-2"></i>API Info</h5></div>
-              <div class="modal-body" style="font-size:.85rem; color:#555;">
-                <p><strong>API Base URL:</strong><br><code id="api-base-url"></code></p>
-                <p><strong>Endpoints:</strong></p>
-                <ul style="padding-left:16px;">
+              <div class="modal-body" style="font-size:.85rem; color:var(--text-sub);">
+                <p><strong>API Base URL:</strong><br><code id="api-base-url" style="color:var(--accent2);font-size:.82rem;"></code></p>
+                <p style="margin-top:12px;"><strong>Endpoints:</strong></p>
+                <ul style="padding-left:16px;line-height:2.2;">
                   <li><code>POST /api/bookings</code> — submit booking</li>
                   <li><code>GET  /api/bookings</code> — list bookings (auth)</li>
                   <li><code>POST /api/contacts</code> — submit contact</li>
                   <li><code>GET  /api/contacts</code> — list contacts (auth)</li>
                   <li><code>POST /api/auth/login</code> — admin login</li>
+                  <li><code>POST /api/auth/test-email</code> — diagnose email</li>
                 </ul>
               </div>
             </div>
@@ -1058,6 +1071,44 @@
       document.getElementById('conf-pwd').value = '';
     } else if (data) {
       msgEl.innerHTML = `<div class="alert alert-danger py-2 mb-3">${data.message}</div>`;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // EMAIL DIAGNOSTICS
+  // ──────────────────────────────────────────────────────────────────────────
+  async function testEmail() {
+    const btn    = document.getElementById('test-email-btn');
+    const result = document.getElementById('email-test-result');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending…';
+    result.style.display = 'none';
+
+    const data = await apiFetch('/api/auth/test-email', { method: 'POST' });
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send me-2"></i>Send Test Email';
+    result.style.display = 'block';
+
+    if (data && data.success) {
+      result.style.background = 'rgba(16,185,129,0.12)';
+      result.style.border     = '1px solid rgba(16,185,129,0.3)';
+      result.style.color      = '#6ee7b7';
+      result.innerHTML = `<strong>✅ Email sent successfully!</strong><br>${esc(data.message)}`;
+    } else if (data) {
+      result.style.background = 'rgba(239,68,68,0.1)';
+      result.style.border     = '1px solid rgba(239,68,68,0.3)';
+      result.style.color      = '#fca5a5';
+      result.innerHTML = `
+        <strong>❌ Email failed</strong><br>
+        <strong>Error:</strong> ${esc(data.message)}<br>
+        ${data.hint ? `<strong>Fix:</strong> ${esc(data.hint)}<br>` : ''}
+        ${data.config ? `<span style="opacity:.7;font-size:.78rem;">Config: EMAIL_USER=${esc(data.config.EMAIL_USER)} · ADMIN_EMAIL=${esc(data.config.ADMIN_EMAIL)}</span>` : ''}
+      `;
+    } else {
+      result.style.background = 'rgba(239,68,68,0.1)';
+      result.style.color = '#fca5a5';
+      result.innerHTML = '❌ Request failed. Are you logged in?';
     }
   }
 
