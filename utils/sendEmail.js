@@ -1,46 +1,38 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// ─── Create Gmail transporter ─────────────────────────────────────────────────
-// Uses port 465 with SSL (not 587 STARTTLS) because Render free tier blocks
-// outbound port 587, causing it to hang silently instead of failing fast.
-// Port 465 SSL works reliably on Render.
-// Strip spaces from app password (Gmail shows them in groups of 4 for readability).
-const createTransporter = () => {
-  const pass = (process.env.EMAIL_PASS || '').replace(/\s/g, '');
-  return nodemailer.createTransport({
-    host:   'smtp.gmail.com',
-    port:   465,
-    secure: true,               // SSL — required for port 465
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass,
-    },
-    connectionTimeout: 10000,  // fail after 10s if can't connect
-    greetingTimeout:   10000,  // fail after 10s waiting for SMTP greeting
-    socketTimeout:     15000,  // fail after 15s of socket inactivity
-  });
-};
+// ─── Resend client ────────────────────────────────────────────────────────────
+// Resend uses HTTP API (port 443) — works on all hosting including Render free.
+// Get your API key at https://resend.com → API Keys.
+// Add RESEND_API_KEY to your Render environment variables.
+//
+// FROM address options:
+//   • Before domain verification: 'onboarding@resend.dev'
+//   • After verifying mncenergy.co.uk in Resend dashboard: 'info@mncenergy.co.uk'
+// Set EMAIL_FROM in .env / Render env vars once your domain is verified.
 
-// ─── Verify transporter (call once on startup to catch config errors early) ───
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
+
+const FROM = process.env.EMAIL_FROM || 'MNC Energy <onboarding@resend.dev>';
+const ADMIN = process.env.ADMIN_EMAIL;
+
+// ─── Verify / startup check ───────────────────────────────────────────────────
 const verifyTransporter = async () => {
-  try {
-    const t = createTransporter();
-    await t.verify();
-    console.log('✅ Email transporter ready');
-  } catch (err) {
-    console.error('⚠️  Email transporter error:', err.message);
-    console.error('   Check EMAIL_USER and EMAIL_PASS in .env / Render env vars');
+  if (!process.env.RESEND_API_KEY) {
+    console.error('⚠️  RESEND_API_KEY is not set — emails will not be sent');
+    return;
   }
+  console.log('✅ Resend email client ready');
+  console.log(`   FROM: ${FROM}`);
+  console.log(`   ADMIN: ${ADMIN}`);
 };
 
-// Call verify at module load time so errors show in server startup logs
 verifyTransporter();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Send booking notification to admin + confirmation to customer
 // ─────────────────────────────────────────────────────────────────────────────
 const sendBookingNotification = async (booking) => {
-  const transporter = createTransporter();
+  const resend = getResend();
 
   const returningBadge = booking.isReturning
     ? `<div style="margin:0 0 16px;padding:10px 14px;background:#fff8e1;border-left:4px solid #f59e0b;border-radius:6px;">
@@ -102,31 +94,34 @@ const sendBookingNotification = async (booking) => {
   `;
 
   // Notify admin
-  console.log(`📧 Sending admin booking email to: ${process.env.ADMIN_EMAIL}`);
-  const adminResult = await transporter.sendMail({
-    from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
-    to:      process.env.ADMIN_EMAIL,
+  console.log(`📧 Sending admin booking email to: ${ADMIN}`);
+  const adminResult = await resend.emails.send({
+    from:    FROM,
+    to:      [ADMIN],
+    replyTo: booking.email,
     subject: `New Booking: ${booking.service} — ${booking.name}${booking.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
   });
-  console.log(`✅ Admin booking email sent. MessageId: ${adminResult.messageId}`);
+  if (adminResult.error) throw new Error(`Admin email failed: ${adminResult.error.message}`);
+  console.log(`✅ Admin booking email sent. ID: ${adminResult.data?.id}`);
 
   // Confirm to customer
   console.log(`📧 Sending customer booking email to: ${booking.email}`);
-  const customerResult = await transporter.sendMail({
-    from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
-    to:      booking.email,
+  const customerResult = await resend.emails.send({
+    from:    FROM,
+    to:      [booking.email],
     subject: `Booking Request Received — ${booking.service} | MNC Energy`,
     html:    customerHtml,
   });
-  console.log(`✅ Customer booking email sent. MessageId: ${customerResult.messageId}`);
+  if (customerResult.error) throw new Error(`Customer email failed: ${customerResult.error.message}`);
+  console.log(`✅ Customer booking email sent. ID: ${customerResult.data?.id}`);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Send contact notification to admin + confirmation to customer
 // ─────────────────────────────────────────────────────────────────────────────
 const sendContactNotification = async (contact) => {
-  const transporter = createTransporter();
+  const resend = getResend();
 
   const returningBadge = contact.isReturning
     ? `<div style="margin:0 0 16px;padding:10px 14px;background:#fff8e1;border-left:4px solid #f59e0b;border-radius:6px;">
@@ -174,23 +169,26 @@ const sendContactNotification = async (contact) => {
     </div>
   `;
 
-  console.log(`📧 Sending admin contact email to: ${process.env.ADMIN_EMAIL}`);
-  const adminResult = await transporter.sendMail({
-    from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
-    to:      process.env.ADMIN_EMAIL,
+  console.log(`📧 Sending admin contact email to: ${ADMIN}`);
+  const adminResult = await resend.emails.send({
+    from:    FROM,
+    to:      [ADMIN],
+    replyTo: contact.email,
     subject: `New Enquiry: ${contact.subject} — ${contact.name}${contact.isReturning ? ' [Returning Customer]' : ''}`,
     html:    adminHtml,
   });
-  console.log(`✅ Admin contact email sent. MessageId: ${adminResult.messageId}`);
+  if (adminResult.error) throw new Error(`Admin email failed: ${adminResult.error.message}`);
+  console.log(`✅ Admin contact email sent. ID: ${adminResult.data?.id}`);
 
   console.log(`📧 Sending customer contact email to: ${contact.email}`);
-  const customerResult = await transporter.sendMail({
-    from:    `"MNC Energy" <${process.env.EMAIL_USER}>`,
-    to:      contact.email,
+  const customerResult = await resend.emails.send({
+    from:    FROM,
+    to:      [contact.email],
     subject: `We've received your enquiry — MNC Energy`,
     html:    customerHtml,
   });
-  console.log(`✅ Customer contact email sent. MessageId: ${customerResult.messageId}`);
+  if (customerResult.error) throw new Error(`Customer email failed: ${customerResult.error.message}`);
+  console.log(`✅ Customer contact email sent. ID: ${customerResult.data?.id}`);
 };
 
 module.exports = { sendBookingNotification, sendContactNotification };

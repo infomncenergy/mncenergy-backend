@@ -17,6 +17,10 @@ connectDB();
 
 const app = express();
 
+// ─── Trust proxy (required on Render / any reverse-proxy host) ───────────────
+// Fixes express-rate-limit ERR_ERL_UNEXPECTED_X_FORWARDED_FOR warning
+app.set('trust proxy', 1);
+
 // ─── Serve admin panel static files ──────────────────────────────────────────
 app.use('/admin', express.static(path.join(__dirname, 'public')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
